@@ -1,10 +1,10 @@
 <template>
-  <div class="vue-table" :class="{'is-blur': !loaded}">
-    <div class="input-sarch">
+  <div class="vue-table" :class="{'is-blur': !loadedShow}">
+    <div class="input-sarch" :class="{ 'events-none': !loaded }">
       <input type="text" placeholder="Поиск" :value="filterLine" @input="handleSearch">
     </div>
     <div class="loading" v-if="!loaded">Is loading</div>
-    <div class="table-view" v-if="loaded">
+    <div class="table-view" v-if="loadedShow">
       <div class="fields">
         <div 
           :class="[ 'table-col', 'table-col-cursor', titleStyle !== null ? titleStyle : '' ]"
@@ -12,7 +12,7 @@
           :key="index"
           @click="sortClick(index)"
         >{{ name }}</div>
-        <div :class="[ 'table-col', 'table-col-cursor', titleStyle !== null ? titleStyle : '' ]">Actions</div>
+        <div :class="[ 'table-col', 'table-col-cursor', titleStyle !== null ? titleStyle : '', { 'events-none': !loaded } ]">Actions</div>
       </div>
       <template v-if="curData.length > 0">
         <div
@@ -23,6 +23,7 @@
         >
             <div 
               class="full-rect"
+              :class="{ 'events-none': !loaded }"
               v-for="(field, keyField) in row.value"
               :key="keyField"
               @dblclick="fieldInput($event, indexRow, keyField)"
@@ -43,10 +44,9 @@
                 </div>
               </template>
           </div>
-          <div class="full-rect">
+          <div class="full-rect" :class="{ 'events-none': !loaded }">
             <div class="table-field">
               <action-buttons
-                v-if="loaded"
                 @remove="removeLine(indexRow)"
                 @add="addLine(indexRow, $event)"
               ></action-buttons>
@@ -58,7 +58,7 @@
         <button class="add-first-string" @click="addFirstString">Добавить первую строку</button>
       </template>
     </div>
-    <div class="bottom-table">
+    <div class="bottom-table" :class="{ 'events-none': !loaded }">
       <div class="button-block">
         <button @click="$emit('remove')">Удалить таблицу</button>
         <button @click="handleRemoveData">Очистить таблицу</button>
@@ -81,7 +81,7 @@
         'modal',
         { 'modal-active': modalActive }
       ]">
-      <div class="block-modal">
+      <div class="block-modal" :class="{ 'events-none': !loaded }">
         <button class="bb btn-copy-buf" @click="copyBuffer">Скопировать в буффер</button>
         <button class="bb btn-paste-buf" @click="pasteBuffer">Заполнить из буффера</button>
         <button class="bb btn-export" @click="exportTable">Экспортировать</button>
@@ -136,6 +136,7 @@ export default {
       curData: [],
       allData: [],
       loaded: false,
+      loadedShow: false,
       nPage: 0,
       haveNames: false,
       haveValue: false,
@@ -173,7 +174,6 @@ export default {
       } else {
         cPages = 0;
       }
-      console.log(cPages, new Array(cPages));
       let array = new Array(cPages);
 
       let N = array.length;
@@ -208,8 +208,9 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
+      this.loadedShow = true;
       this.loaded = true; 
     } else {
       this.getData();
@@ -221,7 +222,6 @@ export default {
       let v = JSON.parse(JSON.stringify((this.filterFlag ? data : this.curData)));
       // let v = data;
       
-      console.log("FILTER: ", this.filterFlag);
       let noSearch = !this.filterFlag || this.filterLine === '';
       if (!noSearch) {
         let str = this.filterLine.split(' ').join('').toLowerCase();
@@ -241,22 +241,22 @@ export default {
       return JSON.parse(JSON.stringify(v));
     },
     sortClick(index) {
-      console.log("CLICK");
-      this.sortFlag = true;
+      if (this.loaded) {
+        console.log("CLICK");
+        this.sortFlag = true;
 
-      this.filterFlag = true;
-      let field = this.curFields[index];
-      this.loaded = false;
+        this.filterFlag = true;
+        let field = this.curFields[index];
 
-      if (field === this.curSortElement) {
-        this.sortDirection = !this.sortDirection;
-      } else {
-        this.sortDirection = false;
+        if (field === this.curSortElement) {
+          this.sortDirection = !this.sortDirection;
+        } else {
+          this.sortDirection = false;
+        }
+
+        this.curSortElement = field;
+        this.curData = this.filterData(this.allData);
       }
-
-      this.curSortElement = field;
-      this.curData = this.filterData(this.allData);
-      this.loaded = true;
     },
     keyDown(event) {
       if (event.keyCode === 13) {   // enter
@@ -264,7 +264,7 @@ export default {
           value: this.allData,
           fields: this.curFields,
           rows: this.rows,
-          meta: this.mata
+          meta: this.meta
         });
         event.preventDefault();
         this.isInput = false;
@@ -289,7 +289,7 @@ export default {
           value: this.curData,
           fields: this.curFields,
           rows: this.rows,
-          meta: this.mata
+          meta: this.meta
         });
         this.isInput = false;
         event.preventDefault();
@@ -307,91 +307,100 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
     },
     fieldInput(event, index, key) {
-      this.sortFlag = false;
-      this.filterFlag = false;
-      this.isInput = true;
-      console.log(event, index, key);
-      this.curIndexRow = index;
-      this.curIndexField = key;
+      if (this.loaded) {
+        this.sortFlag = false;
+        this.filterFlag = false;
+        this.isInput = true;
+        console.log(event, index, key);
+        this.curIndexRow = index;
+        this.curIndexField = key;
 
-      let findIndex = this.allData.findIndex((a) => {
-        return a.lineID === this.curData[index + this.elementsPage * this.nPage].lineID
-      });
+        let findIndex = this.allData.findIndex((a) => {
+          return a.lineID === this.curData[index + this.elementsPage * this.nPage].lineID
+        });
 
-      this.lastEditValue = this.allData[findIndex]['value'][key];
-      // this.curData = this.filterData(this.allData);
-      setTimeout(() => {
-        let id = `${ this.indexTable }-${ index }-${ key }`;
-        document.getElementById(id).focus();
-      }, 100)
-
+        this.lastEditValue = this.allData[findIndex]['value'][key];
+        // this.curData = this.filterData(this.allData);
+        setTimeout(() => {
+          let id = `${ this.indexTable }-${ index }-${ key }`;
+          document.getElementById(id).focus();
+        }, 100)
+      }
     },
     pasteBuffer(event) {
-      navigator.clipboard.readText().then(text => {
-        let j = JSON.parse(text);
-        this.loaded = false;
-        this.haveNames = false;
-        this.haveValue = false;
-        this.allData = [];
-        let value = [];
-        if (Object.prototype.toString.call(j) === '[object Array]' && j.length > 0) {
-          this.curFields = this.getNames(j[0]);
-          if (this.curFields.length > 0) {
-            this.haveNames = true;
-            this.haveValue = true;
-            this.curSortElement = this.curFields[0];
+      if (this.loaded) {
+        navigator.clipboard.readText().then(text => {
+          let j = JSON.parse(text);
+          this.loaded = false;
+          this.false = true;
+          this.haveNames = false;
+          this.haveValue = false;
+          this.allData = [];
+          let value = [];
+          if (Object.prototype.toString.call(j) === '[object Array]' && j.length > 0) {
+            this.curFields = this.getNames(j[0]);
+            if (this.curFields.length > 0) {
+              this.haveNames = true;
+              this.haveValue = true;
+              this.curSortElement = this.curFields[0];
+            }
+            for (let i = 0; i < j.length; i++) {
+              let obj = this.marshData(j[i]);
+              this.counter++;
+              value.push({ lineID: this.counter, value: obj });
+            }
           }
-          for (let i = 0; i < j.length; i++) {
-            let obj = this.marshData(j[i]);
-            this.counter++;
-            value.push({ lineID: this.counter, value: obj });
-          }
-        }
-        this.allData = value;
-        this.curData = this.filterData(this.allData);
-        this.$emit('change', {
-          value: this.allData,
-          fields: this.curFields,
-          rows: this.rows,
-          meta: this.mata
+          this.allData = value;
+          this.curData = this.filterData(this.allData);
+          this.$emit('change', {
+            value: this.allData,
+            fields: this.curFields,
+            rows: this.rows,
+            meta: this.meta
+          });
+          this.true = true;
+          this.loaded = true; 
+          alert("success paste");
+        }).catch(err => {
+          console.log('Something went wrong', err);
         });
-        this.loaded = true; 
-        alert("success paste");
-      }).catch(err => {
-        console.log('Something went wrong', err);
-      });
+      }
     },
     copyBuffer(event) {
-      let array = [];
-      for (let i = 0; i < this.allData.length; i++) {
-        array.push(this.unmarshData(this.allData[i].value));
+      if (this.loaded) {
+        let array = [];
+        for (let i = 0; i < this.allData.length; i++) {
+          array.push(this.unmarshData(this.allData[i].value));
+        }
+        navigator.clipboard.writeText(JSON.stringify(array)).then(() => {
+          alert("success copy");
+        }).catch(err => {
+          alert("can't copy");
+        });
       }
-      navigator.clipboard.writeText(JSON.stringify(array)).then(() => {
-        alert("success copy");
-      }).catch(err => {
-        alert("can't copy");
-      });
     },
     exportTable(event) {
-      let array = [];
-      for (let i = 0; i < this.allData.length; i++) {
-        array.push(this.unmarshData(this.allData[i].value));
-      }
+      if (this.loaded) {
+        let array = [];
+        for (let i = 0; i < this.allData.length; i++) {
+          array.push(this.unmarshData(this.allData[i].value));
+        }
 
-      let text = JSON.stringify(array, null, "\t");
-      let data = new Blob([text], { type : 'application/json' });
-      let target = document.createElement("a");
-      let url = window.URL.createObjectURL(data);
-      target.setAttribute("href", url)
-      target.setAttribute("download", "table-data.json");
-      target.click();
-      setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-      }, 100);
+        let text = JSON.stringify(array, null, "\t");
+        let data = new Blob([text], { type : 'application/json' });
+        let target = document.createElement("a");
+        let url = window.URL.createObjectURL(data);
+        target.setAttribute("href", url)
+        target.setAttribute("download", "table-data.json");
+        target.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 100);
+      }
     },
     removeLine(index) {
       this.sortFlag = false;
@@ -409,7 +418,7 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
     },
     addLine(index, flag) {
@@ -433,7 +442,7 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
     },
     addFirstString(event) {
@@ -451,7 +460,7 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
     },
     handleSearch(event) {
@@ -470,7 +479,7 @@ export default {
         value: this.allData,
         fields: this.curFields,
         rows: this.rows,
-        meta: this.mata
+        meta: this.meta
       });
     },
     handleGetData(event) {
@@ -527,83 +536,68 @@ export default {
       return obj;
     },
     getData() {
-      // this.loaded = false;
-      // let url = this.link;
-      // let xhr = new XMLHttpRequest();
-      // xhr.open('GET', url, true);
-      // xhr.overrideMimeType("application/json");
-      // let self = this;
-      // xhr.onload = function() {
-      //   if (this.status === 200) {
-      //     let j = JSON.parse(this.response);
-      //     if (j.length > 0) {
-      //       self.curFields = self.getNames(j[0]);
-      //       if (self.curFields.length > 0) {
-      //         self.haveNames = true;
-      //         self.haveValue = true;
-      //         self.curSortElement = self.curFields[0];
-      //       }
-      //       for (let i = 0; i < j.length; i++) {
-      //         let obj = self.marshData(j[i]);
-      //         self.counter += i;
-      //         self.allData.push({ lineID: self.counter, value: obj});
-      //       }
-      //     }
-      //     self.curData = self.filterData(self.allData);
-      //     self.$emit('change', {
-      //       value: self.allData,
-      //       fields: self.curFields,
-      //       rows: self.rows,
-      //       meta: self.mata
-      //     });
-      //     self.loaded = true; 
-      //   }
-      // };
-      // xhr.onerror = function (e) {
-      //   console.error(xhr.statusText);
-      //   self.loaded = true;
-      // };
-      // xhr.send();
-      let req = new Request(this.link, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'default',
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type'
+      this.loaded = false;
+      this.loadedShow = false;
+      let url = `https://cors-anywhere.herokuapp.com/${ this.link}`;
+      let xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.overrideMimeType("application/json");
+      let self = this;
+      let c = 0;
+      let l = 1;
+      xhr.onload = (event) => {
+        let r = event.target.responseText;
+        let z = [];
+        let array = JSON.parse(r);
+        for (let i = 0; i < array.length; i++) {
+          let obj = this.marshData(array[i]);
+          this.counter += i;
+          z.push({ lineID: this.counter, value: obj});
         }
-      });
-      fetch(req).then(response => {
-        if (response.status === 200) {
-          response.json().then(j => {
-            if (j.length > 0) {
-              this.curFields = this.getNames(j[0]);
-              if (this.curFields.length > 0) {
-                this.haveNames = true;
-                this.haveValue = true;
-                this.curSortElement = this.curFields[0];
-              }
-              for (let i = 0; i < j.length; i++) {
-                let obj = this.marshData(j[i]);
-                this.counter += i;
-                this.allData.push({ lineID: this.counter, value: obj});
-              }
-            }
-            this.curData = this.filterData(this.allData);
-            this.$emit('change', {
-              value: this.allData,
-              fields: this.curFields,
-              rows: this.rows,
-              meta: this.mata
-            });
-            this.loaded = true; 
-          })
-        }
-      }).catch(error => {
-        console.log(error);
+        this.allData = z;
+        this.curData = this.filterData(z);
         this.loaded = true;
-      })
+        this.$emit('change', {
+          value: this.allData,
+          fields: this.curFields,
+          rows: this.rows,
+          meta: this.meta
+        });
+      }
+      xhr.onprogress = (event) => {
+        let r = event.target.responseText;
+        let g = 0;
+        let z = 0;
+        for (let i = l; i < r.length; i++) {
+          if (r[i] === '{') g++;
+          else if (r[i] === '}') {
+            g--;
+            if (g === 0) {
+              c++;
+              z = i;
+            }
+          }
+        }
+        let str = r.slice(l, z + 1);
+        let array = JSON.parse(`[${ str }]`);
+        if (array.length > 0) {
+          if(this.curFields.length === 0) {
+            this.curFields = this.getNames(array[0]);
+            this.haveNames = true;
+            this.curSortElement = this.curFields[0];
+          }
+
+          for (let i = 0; i < array.length; i++) {
+            let obj = this.marshData(array[i]);
+            this.counter += i;
+            this.allData.push({ lineID: this.counter, value: obj});
+          }
+          this.curData = this.allData;
+          this.loadedShow = true;
+        }
+        l = z + 2;
+      }
+      xhr.send();
     }
   }
 }
@@ -840,6 +834,10 @@ export default {
 }
 .is-blur .input-sarch, .is-blur .table-view,
 .is-blur .bottom-table {
-  filter: blur(4px);
+  filter: blur(2px);
+  pointer-events: none;
+}
+.events-none {
+  pointer-events: none !important;
 }
 </style>
