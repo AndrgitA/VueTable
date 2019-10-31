@@ -19,7 +19,7 @@
           v-for="(row, indexRow) in pageData"
           :key="indexRow"
           :class="['table-row', (indexRow & 1) ? (evenStyle !== null ? evenStyle : '') : (oddStyle !== null ? oddStyle : '')]"
-          
+
         >
             <div 
               class="full-rect"
@@ -46,6 +46,7 @@
           <div class="full-rect">
             <div class="table-field">
               <action-buttons
+                v-if="loaded"
                 @remove="removeLine(indexRow)"
                 @add="addLine(indexRow, $event)"
               ></action-buttons>
@@ -526,36 +527,72 @@ export default {
     },
     getData() {
       this.loaded = false;
-      fetch(this.link).then(response => {
-        if (response.status === 200) {
-          response.json().then(j => {
-            if (j.length > 0) {
-              this.curFields = this.getNames(j[0]);
-              if (this.curFields.length > 0) {
-                this.haveNames = true;
-                this.haveValue = true;
-                this.curSortElement = this.curFields[0];
-              }
-              for (let i = 0; i < j.length; i++) {
-                let obj = this.marshData(j[i]);
-                this.counter += i;
-                this.allData.push({ lineID: this.counter, value: obj});
-              }
+      let url = this.link;
+      let xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.overrideMimeType("application/json");
+      let self = this;
+      xhr.onload = function() {
+        if (this.status === 200) {
+          let j = JSON.parse(this.response);
+          if (j.length > 0) {
+            self.curFields = self.getNames(j[0]);
+            if (self.curFields.length > 0) {
+              self.haveNames = true;
+              self.haveValue = true;
+              self.curSortElement = self.curFields[0];
             }
-            this.curData = this.filterData(this.allData);
-            this.$emit('change', {
-              value: this.allData,
-              fields: this.curFields,
-              rows: this.rows,
-              meta: this.mata
-            });
-            this.loaded = true; 
-          })
+            for (let i = 0; i < j.length; i++) {
+              let obj = self.marshData(j[i]);
+              self.counter += i;
+              self.allData.push({ lineID: self.counter, value: obj});
+            }
+          }
+          self.curData = self.filterData(self.allData);
+          self.$emit('change', {
+            value: self.allData,
+            fields: self.curFields,
+            rows: self.rows,
+            meta: self.mata
+          });
+          self.loaded = true; 
         }
-      }).catch(error => {
-        console.log(error);
-        this.loaded = true;
-      })
+      };
+      xhr.onerror = function (e) {
+        console.error(xhr.statusText);
+        self.loaded = true;
+      };
+      xhr.send();
+      // fetch(this.link).then(response => {
+      //   if (response.status === 200) {
+      //     response.json().then(j => {
+      //       if (j.length > 0) {
+      //         this.curFields = this.getNames(j[0]);
+      //         if (this.curFields.length > 0) {
+      //           this.haveNames = true;
+      //           this.haveValue = true;
+      //           this.curSortElement = this.curFields[0];
+      //         }
+      //         for (let i = 0; i < j.length; i++) {
+      //           let obj = this.marshData(j[i]);
+      //           this.counter += i;
+      //           this.allData.push({ lineID: this.counter, value: obj});
+      //         }
+      //       }
+      //       this.curData = this.filterData(this.allData);
+      //       this.$emit('change', {
+      //         value: this.allData,
+      //         fields: this.curFields,
+      //         rows: this.rows,
+      //         meta: this.mata
+      //       });
+      //       this.loaded = true; 
+      //     })
+      //   }
+      // }).catch(error => {
+      //   console.log(error);
+      //   this.loaded = true;
+      // })
     }
   }
 }
