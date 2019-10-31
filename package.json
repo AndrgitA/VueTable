@@ -4,8 +4,11 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "build": "vue-cli-service build --modern",
+    "build:local": "vue-cli-service build --modern --mode production_local",
+    "build:report": "vue-cli-service build --modern --report && chromium-browser ./dist/report.html",
+    "lint": "vue-cli-service lint",
+    "view:local": "serve -s dist -l 8080"
   },
   "dependencies": {
     "core-js": "^3.3.2",
